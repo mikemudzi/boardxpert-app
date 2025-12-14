@@ -137,3 +137,51 @@ pub struct OptimizeResult {
     pub waste_area: u64,
     pub waste_percentage: f64,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_edge_banding_rotation() {
+        let banding = EdgeBanding {
+            top: true,
+            right: false,
+            bottom: true,
+            left: false,
+            material: "White 1mm".to_string(),
+        };
+
+        let rotated = banding.rotated();
+
+        // After 90 degree clockwise rotation:
+        // - top becomes right
+        // - right becomes bottom
+        // - bottom becomes left
+        // - left becomes top
+        assert!(!rotated.top);    // was left (false)
+        assert!(rotated.right);   // was top (true)
+        assert!(!rotated.bottom); // was right (false)
+        assert!(rotated.left);    // was bottom (true)
+        assert_eq!(rotated.material, "White 1mm");
+    }
+
+    #[test]
+    fn test_edge_banding_double_rotation() {
+        let banding = EdgeBanding {
+            top: true,
+            right: false,
+            bottom: false,
+            left: true,
+            material: "Oak 2mm".to_string(),
+        };
+
+        let rotated_twice = banding.rotated().rotated();
+
+        // 180 degree rotation: top<->bottom, left<->right
+        assert!(!rotated_twice.top);
+        assert!(rotated_twice.right);
+        assert!(rotated_twice.bottom);
+        assert!(!rotated_twice.left);
+    }
+}
