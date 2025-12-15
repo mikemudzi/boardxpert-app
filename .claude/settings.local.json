@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(superpowers:brainstorming)",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$(cat <<''EOF''\ndocs: Add Rust API architecture design\n\nComprehensive design for the cut optimizer API including:\n- System architecture (Actix-web, Redis, PostgreSQL, S3)\n- FFDH algorithm with guillotine constraints\n- Sync/async job processing split\n- Core data types and API endpoints\n- Error handling and configuration\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Skill(superpowers:using-git-worktrees)",
+      "Bash(git worktree add:*)",
+      "Skill(superpowers:writing-plans)",
+      "Bash(git commit -m \"$(cat <<''EOF''\ndocs: Add detailed implementation plan for Cut Optimizer API\n\n12 bite-sized tasks covering:\n- Project setup with Actix-web\n- Core optimizer types with edge banding support\n- FFDH algorithm with guillotine constraints\n- API layer (validation, handlers, routes)\n- Integration tests\n- Docker and docker-compose setup\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
+      "Skill(superpowers:subagent-driven-development)",
+      "Bash(cargo build:*)",
+      "Bash(rustc:*)",
+      "Bash(cargo update:*)",
+      "Bash(rustup:*)",
+      "Bash(git commit:*)",
+      "Bash(cargo test:*)"
+    ]
+  }
+}
