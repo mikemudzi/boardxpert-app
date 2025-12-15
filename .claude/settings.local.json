@@ -16,7 +16,12 @@
       "Bash(cargo update:*)",
       "Bash(rustup:*)",
       "Bash(git commit:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(cargo check:*)",
+      "Bash(git push:*)",
+      "Bash(git config:*)",
+      "Bash(gh pr create --title \"feat: Add Cut Optimizer API with PDF generation\" --body \"$(cat <<''EOF''\n## Summary\n\nThis PR adds a complete Rust-based Cut Optimizer API for 2D bin packing optimization with PDF layout diagram generation.\n\n### Core Features\n- **FFDH Algorithm**: First-Fit Decreasing Height algorithm for efficient piece placement\n- **Guillotine Cuts**: Supports standard panel saw constraints\n- **Edge Banding**: Tracks and visualizes edge banding requirements\n- **PDF Generation**: Creates professional layout diagrams with printpdf\n\n### API Endpoints\n- `POST /api/v1/validate` - Validate optimization requests\n- `POST /api/v1/optimize/quick` - Synchronous optimization with optional PDF\n- `GET /api/v1/templates` - Get predefined stock sheet templates\n- `GET /health` - Health check endpoint\n\n### PDF Layout Features\n- A4 portrait format with header, sidebar, and diagram regions\n- Material info, job reference, client name, and statistics in header\n- Cutting list sidebar with aggregated piece counts\n- Scaled sheet diagram with piece IDs and dimensions\n- Edge banding visualized as red dashed lines\n\n### Technical Stack\n- **Framework**: Actix-web 4.x\n- **PDF**: printpdf 0.7\n- **Serialization**: serde/serde_json\n- **Logging**: tracing/tracing-subscriber\n\n### Testing\n- 32 tests total (24 unit + 8 integration)\n- Tests cover validation, optimization, edge banding, PDF generation\n\n## Test plan\n- [x] Run `cargo test` - all 32 tests pass\n- [x] Run `cargo check` - compiles with warnings only\n- [ ] Manual test: POST to `/api/v1/optimize/quick` with `generate_pdf: true`\n- [ ] Visual inspection: Decode base64 PDF and verify layout\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\nEOF\n)\")"
     ]
   }
 }
