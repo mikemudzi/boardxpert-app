@@ -368,3 +368,230 @@ pub fn generate_pdf(
     buffer.into_inner()
         .map_err(|e| PdfError::SaveError(e.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::optimizer::{PlacedPiece, SheetLayout};
+
+    #[test]
+    fn test_build_cutting_list_single_piece_type() {
+        let layouts = vec![SheetLayout {
+            sheet_index: 0,
+            stock_sheet_id: "sheet-1".to_string(),
+            stock_sheet_name: "BOARD White".to_string(),
+            width: 2740,
+            length: 1820,
+            pieces: vec![
+                PlacedPiece {
+                    piece_id: "panel-a-0".to_string(),
+                    label: None,
+                    x: 0,
+                    y: 0,
+                    width: 580,
+                    length: 418,
+                    rotated: false,
+                    edge_banding: None,
+                },
+                PlacedPiece {
+                    piece_id: "panel-a-1".to_string(),
+                    label: None,
+                    x: 584,
+                    y: 0,
+                    width: 580,
+                    length: 418,
+                    rotated: false,
+                    edge_banding: None,
+                },
+            ],
+            used_area: 484880,
+            waste_percentage: 90.3,
+        }];
+
+        let list = build_cutting_list(&layouts);
+
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].id, "panel-a");
+        assert_eq!(list[0].quantity, 2);
+        assert_eq!(list[0].width, 580);
+        assert_eq!(list[0].length, 418);
+    }
+
+    #[test]
+    fn test_build_cutting_list_multiple_piece_types() {
+        let layouts = vec![SheetLayout {
+            sheet_index: 0,
+            stock_sheet_id: "sheet-1".to_string(),
+            stock_sheet_name: "BOARD White".to_string(),
+            width: 2740,
+            length: 1820,
+            pieces: vec![
+                PlacedPiece {
+                    piece_id: "panel-a-0".to_string(),
+                    label: None,
+                    x: 0,
+                    y: 0,
+                    width: 580,
+                    length: 418,
+                    rotated: false,
+                    edge_banding: None,
+                },
+                PlacedPiece {
+                    piece_id: "panel-b-0".to_string(),
+                    label: None,
+                    x: 584,
+                    y: 0,
+                    width: 300,
+                    length: 200,
+                    rotated: false,
+                    edge_banding: None,
+                },
+                PlacedPiece {
+                    piece_id: "panel-a-1".to_string(),
+                    label: None,
+                    x: 0,
+                    y: 422,
+                    width: 580,
+                    length: 418,
+                    rotated: false,
+                    edge_banding: None,
+                },
+            ],
+            used_area: 545080,
+            waste_percentage: 89.1,
+        }];
+
+        let list = build_cutting_list(&layouts);
+
+        assert_eq!(list.len(), 2);
+        // Sorted alphabetically
+        assert_eq!(list[0].id, "panel-a");
+        assert_eq!(list[0].quantity, 2);
+        assert_eq!(list[1].id, "panel-b");
+        assert_eq!(list[1].quantity, 1);
+    }
+
+    #[test]
+    fn test_build_cutting_list_across_multiple_layouts() {
+        let layouts = vec![
+            SheetLayout {
+                sheet_index: 0,
+                stock_sheet_id: "sheet-1".to_string(),
+                stock_sheet_name: "BOARD White".to_string(),
+                width: 2740,
+                length: 1820,
+                pieces: vec![
+                    PlacedPiece {
+                        piece_id: "panel-a-0".to_string(),
+                        label: None,
+                        x: 0,
+                        y: 0,
+                        width: 580,
+                        length: 418,
+                        rotated: false,
+                        edge_banding: None,
+                    },
+                ],
+                used_area: 242440,
+                waste_percentage: 95.1,
+            },
+            SheetLayout {
+                sheet_index: 1,
+                stock_sheet_id: "sheet-1".to_string(),
+                stock_sheet_name: "BOARD White".to_string(),
+                width: 2740,
+                length: 1820,
+                pieces: vec![
+                    PlacedPiece {
+                        piece_id: "panel-a-1".to_string(),
+                        label: None,
+                        x: 0,
+                        y: 0,
+                        width: 580,
+                        length: 418,
+                        rotated: false,
+                        edge_banding: None,
+                    },
+                    PlacedPiece {
+                        piece_id: "panel-a-2".to_string(),
+                        label: None,
+                        x: 584,
+                        y: 0,
+                        width: 580,
+                        length: 418,
+                        rotated: false,
+                        edge_banding: None,
+                    },
+                ],
+                used_area: 484880,
+                waste_percentage: 90.3,
+            },
+        ];
+
+        let list = build_cutting_list(&layouts);
+
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].id, "panel-a");
+        assert_eq!(list[0].quantity, 3);
+    }
+
+    #[test]
+    fn test_build_cutting_list_piece_id_without_suffix() {
+        let layouts = vec![SheetLayout {
+            sheet_index: 0,
+            stock_sheet_id: "sheet-1".to_string(),
+            stock_sheet_name: "BOARD White".to_string(),
+            width: 2740,
+            length: 1820,
+            pieces: vec![
+                PlacedPiece {
+                    piece_id: "custom-piece".to_string(), // No numeric suffix
+                    label: None,
+                    x: 0,
+                    y: 0,
+                    width: 580,
+                    length: 418,
+                    rotated: false,
+                    edge_banding: None,
+                },
+            ],
+            used_area: 242440,
+            waste_percentage: 95.1,
+        }];
+
+        let list = build_cutting_list(&layouts);
+
+        assert_eq!(list.len(), 1);
+        assert_eq!(list[0].id, "custom-piece");
+        assert_eq!(list[0].quantity, 1);
+    }
+
+    #[test]
+    fn test_calculate_scale_wide_sheet() {
+        // Wide sheet: 2740mm x 1820mm
+        let scale = calculate_scale(2740, 1820);
+        // Should be limited by width
+        let expected = DIAGRAM_WIDTH / 2740.0;
+        assert!((scale - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_calculate_scale_tall_sheet() {
+        // Tall sheet: 1000mm x 3000mm
+        let scale = calculate_scale(1000, 3000);
+        // Should be limited by height
+        let expected = DIAGRAM_HEIGHT / 3000.0;
+        assert!((scale - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_calculate_scale_square_sheet() {
+        // Square sheet: 1000mm x 1000mm
+        let scale = calculate_scale(1000, 1000);
+        // Should use the smaller scale factor
+        let scale_x = DIAGRAM_WIDTH / 1000.0;
+        let scale_y = DIAGRAM_HEIGHT / 1000.0;
+        let expected = scale_x.min(scale_y);
+        assert!((scale - expected).abs() < 0.001);
+    }
+}

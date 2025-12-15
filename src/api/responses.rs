@@ -59,4 +59,6 @@ pub struct OptimizeResponse {
     pub job_reference: String,
     #[serde(flatten)]
     pub result: OptimizeResult,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pdf_base64: Option<String>,
 }

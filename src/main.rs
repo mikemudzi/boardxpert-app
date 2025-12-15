@@ -3,6 +3,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod api;
 mod optimizer;
+mod output;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {

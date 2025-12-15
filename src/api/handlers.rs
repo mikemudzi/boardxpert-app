@@ -1,6 +1,8 @@
 use actix_web::{web, HttpResponse};
+use base64::{Engine as _, engine::general_purpose};
 use crate::api::{OptimizeRequest, ApiResponse, OptimizeResponse, validate_request};
 use crate::optimizer::solve_ffdh;
+use crate::output::generate_pdf;
 
 /// POST /api/v1/validate
 pub async fn validate(
@@ -43,9 +45,28 @@ pub async fn optimize_quick(
         request.parameters.blade_kerf,
     );
 
+    // Generate PDF if requested
+    let pdf_base64 = if request.output.generate_pdf {
+        match generate_pdf(
+            &result,
+            &request.job_reference,
+            request.client_name.as_deref(),
+            stock_sheet,
+        ) {
+            Ok(bytes) => Some(general_purpose::STANDARD.encode(&bytes)),
+            Err(e) => {
+                tracing::error!("PDF generation failed: {}", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     let response = OptimizeResponse {
         job_reference: request.job_reference.clone(),
         result,
+        pdf_base64,
     };
 
     HttpResponse::Ok().json(ApiResponse::success(response))
