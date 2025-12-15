@@ -1,6 +1,7 @@
 use thiserror::Error;
 use printpdf::*;
 use std::io::BufWriter;
+use std::collections::HashMap;
 
 use crate::optimizer::{OptimizeResult, StockSheet, SheetLayout};
 
@@ -25,6 +26,98 @@ const DIAGRAM_X: f32 = 60.0;
 const DIAGRAM_Y: f32 = 10.0;
 const DIAGRAM_WIDTH: f32 = 145.0;
 const DIAGRAM_HEIGHT: f32 = 255.0;
+
+#[derive(Debug, Clone)]
+struct CuttingListEntry {
+    id: String,
+    length: u32,
+    width: u32,
+    quantity: u32,
+}
+
+fn build_cutting_list(layouts: &[SheetLayout]) -> Vec<CuttingListEntry> {
+    let mut entries: HashMap<String, CuttingListEntry> = HashMap::new();
+
+    for layout in layouts {
+        for piece in &layout.pieces {
+            // Extract original ID (strip instance suffix: "panel-a-0" -> "panel-a")
+            let original_id = piece.piece_id.rsplit_once('-')
+                .and_then(|(prefix, suffix)| {
+                    // Only strip if suffix is numeric
+                    if suffix.chars().all(|c| c.is_ascii_digit()) {
+                        Some(prefix)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or(&piece.piece_id);
+
+            entries.entry(original_id.to_string())
+                .and_modify(|e| e.quantity += 1)
+                .or_insert(CuttingListEntry {
+                    id: original_id.to_string(),
+                    length: piece.length,
+                    width: piece.width,
+                    quantity: 1,
+                });
+        }
+    }
+
+    let mut list: Vec<_> = entries.into_values().collect();
+    list.sort_by(|a, b| a.id.cmp(&b.id));
+    list
+}
+
+fn draw_sidebar(
+    layer: &PdfLayerReference,
+    font: &IndirectFontRef,
+    font_bold: &IndirectFontRef,
+    cutting_list: &[CuttingListEntry],
+) {
+    let mut y = HEADER_Y - 25.0;
+
+    // Cutting List header
+    layer.use_text("Cutting List", 9.0, Mm(5.0), Mm(y), font_bold);
+    y -= 5.0;
+
+    // Table header
+    layer.use_text("Id", 7.0, Mm(5.0), Mm(y), font_bold);
+    layer.use_text("Length", 7.0, Mm(15.0), Mm(y), font_bold);
+    layer.use_text("Width", 7.0, Mm(30.0), Mm(y), font_bold);
+    layer.use_text("Qty", 7.0, Mm(45.0), Mm(y), font_bold);
+    y -= 4.0;
+
+    // Table rows
+    for entry in cutting_list {
+        if y < 30.0 { break; } // Stop if running out of space
+
+        layer.use_text(&entry.id, 7.0, Mm(5.0), Mm(y), font);
+        layer.use_text(&entry.length.to_string(), 7.0, Mm(15.0), Mm(y), font);
+        layer.use_text(&entry.width.to_string(), 7.0, Mm(30.0), Mm(y), font);
+        layer.use_text(&entry.quantity.to_string(), 7.0, Mm(45.0), Mm(y), font);
+        y -= 4.0;
+    }
+
+    // Edging Legend
+    y -= 5.0;
+    layer.use_text("Edging Legend", 9.0, Mm(5.0), Mm(y), font_bold);
+    y -= 5.0;
+
+    // Draw dashed line sample
+    let line = Line {
+        points: vec![
+            (Point::new(Mm(5.0), Mm(y)), false),
+            (Point::new(Mm(35.0), Mm(y)), false),
+        ],
+        is_closed: false,
+    };
+    layer.set_outline_color(Color::Rgb(Rgb::new(0.8, 0.0, 0.0, None)));
+    layer.set_outline_thickness(0.5);
+    // Note: printpdf doesn't support dash patterns directly in basic API
+    // We'll draw the legend as text indication instead
+    layer.add_line(line);
+    layer.use_text("Edge Banding", 7.0, Mm(5.0), Mm(y - 4.0), font);
+}
 
 fn draw_header(
     layer: &PdfLayerReference,
@@ -90,6 +183,9 @@ pub fn generate_pdf(
     let font_bold = doc.add_builtin_font(BuiltinFont::HelveticaBold)
         .map_err(|e| PdfError::FontError(e.to_string()))?;
 
+    // Build cutting list once for all pages
+    let cutting_list = build_cutting_list(&result.layouts);
+
     // Draw first page
     if let Some(layout) = result.layouts.first() {
         let current_layer = doc.get_page(page1).get_layer(layer1);
@@ -99,6 +195,7 @@ pub fn generate_pdf(
             0, result.layouts.len(), layout,
             result.total_pieces, result.waste_percentage,
         );
+        draw_sidebar(&current_layer, &font, &font_bold, &cutting_list);
     }
 
     // Add pages for remaining layouts
@@ -111,6 +208,7 @@ pub fn generate_pdf(
             i, result.layouts.len(), layout,
             result.total_pieces, result.waste_percentage,
         );
+        draw_sidebar(&current_layer, &font, &font_bold, &cutting_list);
     }
 
     let mut buffer = BufWriter::new(Vec::new());
