@@ -68,6 +68,12 @@ fn build_cutting_list(layouts: &[SheetLayout]) -> Vec<CuttingListEntry> {
     list
 }
 
+fn calculate_scale(sheet_width: u32, sheet_length: u32) -> f32 {
+    let scale_x = DIAGRAM_WIDTH / sheet_width as f32;
+    let scale_y = DIAGRAM_HEIGHT / sheet_length as f32;
+    scale_x.min(scale_y)
+}
+
 fn draw_sidebar(
     layer: &PdfLayerReference,
     font: &IndirectFontRef,
@@ -164,6 +170,148 @@ fn draw_header(
     );
 }
 
+fn draw_diagram(
+    layer: &PdfLayerReference,
+    font: &IndirectFontRef,
+    layout: &SheetLayout,
+    stock_sheet: &StockSheet,
+) {
+    let scale = calculate_scale(stock_sheet.width, stock_sheet.length);
+
+    // Calculate diagram position (centered in available area)
+    let diagram_sheet_width = stock_sheet.width as f32 * scale;
+    let diagram_sheet_height = stock_sheet.length as f32 * scale;
+    let offset_x = DIAGRAM_X + (DIAGRAM_WIDTH - diagram_sheet_width) / 2.0;
+    let offset_y = DIAGRAM_Y + (DIAGRAM_HEIGHT - diagram_sheet_height) / 2.0;
+
+    // Draw sheet outline
+    layer.set_outline_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+    layer.set_outline_thickness(1.0);
+
+    let sheet_rect = Rect::new(
+        Mm(offset_x), Mm(offset_y),
+        Mm(offset_x + diagram_sheet_width), Mm(offset_y + diagram_sheet_height),
+    );
+    layer.add_rect(sheet_rect);
+
+    // Draw sheet dimension labels
+    layer.use_text(
+        &format!("{} mm", stock_sheet.width),
+        7.0, Mm(offset_x + diagram_sheet_width / 2.0 - 10.0), Mm(offset_y + diagram_sheet_height + 3.0), font
+    );
+    layer.use_text(
+        &format!("{} mm", stock_sheet.length),
+        7.0, Mm(offset_x + diagram_sheet_width + 2.0), Mm(offset_y + diagram_sheet_height / 2.0), font
+    );
+
+    // Draw pieces
+    for piece in &layout.pieces {
+        draw_piece(layer, font, piece, scale, offset_x, offset_y, diagram_sheet_height);
+    }
+}
+
+fn draw_piece(
+    layer: &PdfLayerReference,
+    font: &IndirectFontRef,
+    piece: &crate::optimizer::PlacedPiece,
+    scale: f32,
+    offset_x: f32,
+    offset_y: f32,
+    diagram_sheet_height: f32,
+) {
+    let x = offset_x + piece.x as f32 * scale;
+    // Y is inverted: piece.y=0 is at top of sheet, but PDF y=0 is at bottom
+    let y = offset_y + diagram_sheet_height - (piece.y as f32 + piece.length as f32) * scale;
+    let w = piece.width as f32 * scale;
+    let h = piece.length as f32 * scale;
+
+    // Draw piece rectangle
+    layer.set_outline_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+    layer.set_outline_thickness(0.5);
+
+    let piece_rect = Rect::new(Mm(x), Mm(y), Mm(x + w), Mm(y + h));
+    layer.add_rect(piece_rect);
+
+    // Draw piece ID centered
+    let id_short = piece.piece_id.rsplit_once('-')
+        .and_then(|(prefix, suffix)| {
+            if suffix.chars().all(|c| c.is_ascii_digit()) {
+                Some(prefix)
+            } else {
+                None
+            }
+        })
+        .unwrap_or(&piece.piece_id);
+
+    if w > 8.0 && h > 8.0 {
+        layer.use_text(id_short, 8.0, Mm(x + w / 2.0 - 2.0), Mm(y + h / 2.0 - 1.0), font);
+    }
+
+    // Draw dimensions if piece is large enough
+    if w > 20.0 {
+        layer.use_text(
+            &format!("{} mm", piece.width),
+            5.0, Mm(x + w / 2.0 - 8.0), Mm(y + h - 3.0), font
+        );
+    }
+    if h > 20.0 {
+        layer.use_text(
+            &format!("{} mm", piece.length),
+            5.0, Mm(x + w - 10.0), Mm(y + h / 2.0), font
+        );
+    }
+
+    // Draw edge banding (red dashed-style lines)
+    if let Some(eb) = &piece.edge_banding {
+        layer.set_outline_color(Color::Rgb(Rgb::new(0.8, 0.0, 0.0, None)));
+        layer.set_outline_thickness(1.0);
+
+        if eb.top {
+            let line = Line {
+                points: vec![
+                    (Point::new(Mm(x), Mm(y + h)), false),
+                    (Point::new(Mm(x + w), Mm(y + h)), false),
+                ],
+                is_closed: false,
+            };
+            layer.add_line(line);
+        }
+        if eb.bottom {
+            let line = Line {
+                points: vec![
+                    (Point::new(Mm(x), Mm(y)), false),
+                    (Point::new(Mm(x + w), Mm(y)), false),
+                ],
+                is_closed: false,
+            };
+            layer.add_line(line);
+        }
+        if eb.left {
+            let line = Line {
+                points: vec![
+                    (Point::new(Mm(x), Mm(y)), false),
+                    (Point::new(Mm(x), Mm(y + h)), false),
+                ],
+                is_closed: false,
+            };
+            layer.add_line(line);
+        }
+        if eb.right {
+            let line = Line {
+                points: vec![
+                    (Point::new(Mm(x + w), Mm(y)), false),
+                    (Point::new(Mm(x + w), Mm(y + h)), false),
+                ],
+                is_closed: false,
+            };
+            layer.add_line(line);
+        }
+
+        // Reset color to black
+        layer.set_outline_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
+    }
+}
+
 /// Generate PDF bytes from optimization result
 pub fn generate_pdf(
     result: &OptimizeResult,
@@ -196,6 +344,7 @@ pub fn generate_pdf(
             result.total_pieces, result.waste_percentage,
         );
         draw_sidebar(&current_layer, &font, &font_bold, &cutting_list);
+        draw_diagram(&current_layer, &font, layout, stock_sheet);
     }
 
     // Add pages for remaining layouts
@@ -209,6 +358,7 @@ pub fn generate_pdf(
             result.total_pieces, result.waste_percentage,
         );
         draw_sidebar(&current_layer, &font, &font_bold, &cutting_list);
+        draw_diagram(&current_layer, &font, layout, stock_sheet);
     }
 
     let mut buffer = BufWriter::new(Vec::new());
