@@ -245,3 +245,102 @@ async fn test_optimize_quick_without_pdf_generation() {
     // Verify PDF was NOT generated (field should be null or missing)
     assert!(body["result"]["pdf_base64"].is_null(), "pdf_base64 should be null when not requested");
 }
+
+// Note: Async job tests require PostgreSQL and Redis infrastructure.
+// These tests verify request/response structure without actual database.
+
+#[actix_rt::test]
+async fn test_async_optimize_without_appstate_returns_error() {
+    // When AppState is not configured, async endpoints should fail gracefully
+    let app = test::init_service(
+        App::new().configure(api::routes::configure)
+    ).await;
+
+    let req = test::TestRequest::post()
+        .uri("/api/v1/optimize/async")
+        .set_json(serde_json::json!({
+            "job_reference": "ASYNC-TEST-001",
+            "pieces": [
+                {"id": "panel-a", "width": 580, "length": 418, "quantity": 2}
+            ],
+            "stock_sheets": [
+                {"id": "sheet-1", "name": "BOARD White", "width": 2740, "length": 1820}
+            ]
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    // Without AppState, this should return 500 Internal Server Error
+    // because the handler expects app_data<AppState>
+    assert_eq!(resp.status(), 500);
+}
+
+#[actix_rt::test]
+async fn test_async_optimize_validates_request_via_sync() {
+    // Test validation logic using optimize/quick (async uses same validation)
+    let app = test::init_service(
+        App::new().configure(api::routes::configure)
+    ).await;
+
+    // Invalid request - no pieces (test via sync endpoint since async needs AppState)
+    let req = test::TestRequest::post()
+        .uri("/api/v1/optimize/quick")
+        .set_json(serde_json::json!({
+            "job_reference": "ASYNC-TEST-002",
+            "pieces": [],
+            "stock_sheets": [
+                {"id": "sheet-1", "name": "BOARD White", "width": 2740, "length": 1820}
+            ]
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    // Should return 400 Bad Request for validation error
+    assert_eq!(resp.status(), 400);
+
+    let body: serde_json::Value = test::read_body_json(resp).await;
+    assert!(!body["success"].as_bool().unwrap());
+    assert_eq!(body["error"]["code"], "NO_PIECES");
+}
+
+#[actix_rt::test]
+async fn test_job_status_without_appstate_returns_error() {
+    let app = test::init_service(
+        App::new().configure(api::routes::configure)
+    ).await;
+
+    let req = test::TestRequest::get()
+        .uri("/api/v1/jobs/550e8400-e29b-41d4-a716-446655440000")
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    // Without AppState, this should return 500 Internal Server Error
+    assert_eq!(resp.status(), 500);
+}
+
+#[actix_rt::test]
+async fn test_request_with_webhook_url() {
+    // Test that webhook_url is accepted in requests
+    let app = test::init_service(
+        App::new().configure(api::routes::configure)
+    ).await;
+
+    // Use optimize/quick which doesn't need AppState
+    let req = test::TestRequest::post()
+        .uri("/api/v1/optimize/quick")
+        .set_json(serde_json::json!({
+            "job_reference": "WEBHOOK-TEST",
+            "pieces": [
+                {"id": "panel-a", "width": 580, "length": 418, "quantity": 1}
+            ],
+            "stock_sheets": [
+                {"id": "sheet-1", "name": "BOARD White", "width": 2740, "length": 1820}
+            ],
+            "webhook_url": "https://example.com/webhook"
+        }))
+        .to_request();
+    let resp = test::call_service(&app, req).await;
+
+    // Should succeed - webhook_url is accepted but ignored for sync requests
+    assert!(resp.status().is_success());
+}
