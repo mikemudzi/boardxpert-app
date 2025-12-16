@@ -1,7 +1,7 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use crate::optimizer::{CutPiece, StockSheet, CutParameters};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct OptimizeRequest {
     pub job_reference: String,
     #[serde(default)]
@@ -12,9 +12,11 @@ pub struct OptimizeRequest {
     pub parameters: CutParameters,
     #[serde(default)]
     pub output: OutputOptions,
+    #[serde(default)]
+    pub webhook_url: Option<String>,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct OutputOptions {
     #[serde(default)]
     pub generate_pdf: bool,

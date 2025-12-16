@@ -1,4 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::Serialize;
+use uuid::Uuid;
 use crate::optimizer::OptimizeResult;
 
 #[derive(Debug, Serialize)]
@@ -61,4 +63,32 @@ pub struct OptimizeResponse {
     pub result: OptimizeResult,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pdf_base64: Option<String>,
+}
+
+/// Response when an async job is created
+#[derive(Debug, Serialize)]
+pub struct AsyncJobResponse {
+    pub job_id: Uuid,
+    pub status: String,
+}
+
+/// Response for job status polling
+#[derive(Debug, Serialize)]
+pub struct JobStatusResponse {
+    pub job_id: Uuid,
+    pub status: String,
+    pub job_reference: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result: Option<OptimizeResult>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pdf_base64: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
+    pub created_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub started_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<DateTime<Utc>>,
 }

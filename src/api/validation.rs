@@ -118,6 +118,7 @@ mod tests {
             }],
             parameters: CutParameters::default(),
             output: OutputOptions::default(),
+            webhook_url: None,
         }
     }
 

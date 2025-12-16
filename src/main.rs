@@ -4,10 +4,15 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod api;
 mod cli;
+mod db;
 mod optimizer;
 mod output;
+mod queue;
+mod worker;
 
+use api::AppState;
 use cli::Cli;
+use worker::Worker;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -21,12 +26,29 @@ async fn main() -> std::io::Result<()> {
     let args = Cli::parse();
 
     if args.worker {
-        tracing::info!("Starting worker with concurrency {}", args.concurrency);
-        // TODO: Implement worker loop
-        Ok(())
+        run_worker(args.concurrency).await
     } else {
         run_api_server().await
     }
+}
+
+async fn run_worker(concurrency: usize) -> std::io::Result<()> {
+    tracing::info!("Starting worker with concurrency {}", concurrency);
+
+    // Initialize database pool
+    let db_pool = db::create_pool().await
+        .expect("Failed to create database pool");
+
+    // Initialize Redis connection
+    let redis_conn = queue::create_client().await
+        .expect("Failed to create Redis connection");
+
+    let worker = Worker::new(db_pool, redis_conn);
+
+    // Run worker (this blocks forever)
+    worker.run().await;
+
+    Ok(())
 }
 
 async fn run_api_server() -> std::io::Result<()> {
@@ -36,7 +58,43 @@ async fn run_api_server() -> std::io::Result<()> {
         .parse()
         .expect("PORT must be a number");
 
-    tracing::info!("Starting Cut Optimizer API at {}:{}", host, port);
+    // Check if async mode is enabled (DATABASE_URL set)
+    let async_enabled = std::env::var("DATABASE_URL").is_ok();
+
+    if async_enabled {
+        run_api_server_with_async(host, port).await
+    } else {
+        run_api_server_sync_only(host, port).await
+    }
+}
+
+async fn run_api_server_with_async(host: String, port: u16) -> std::io::Result<()> {
+    tracing::info!("Starting Cut Optimizer API at {}:{} (async mode enabled)", host, port);
+
+    // Initialize database pool
+    let db_pool = db::create_pool().await
+        .expect("Failed to create database pool");
+
+    // Initialize Redis connection
+    let redis_conn = queue::create_client().await
+        .expect("Failed to create Redis connection");
+
+    let app_state = AppState::new(db_pool, redis_conn);
+
+    HttpServer::new(move || {
+        App::new()
+            .app_data(web::Data::new(app_state.clone()))
+            .route("/health", web::get().to(health_check))
+            .configure(api::routes::configure)
+    })
+    .bind((host, port))?
+    .run()
+    .await
+}
+
+async fn run_api_server_sync_only(host: String, port: u16) -> std::io::Result<()> {
+    tracing::info!("Starting Cut Optimizer API at {}:{} (sync-only mode)", host, port);
+    tracing::warn!("DATABASE_URL not set - async endpoints will return 503");
 
     HttpServer::new(|| {
         App::new()
