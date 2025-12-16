@@ -1,7 +1,11 @@
 pub mod models;
+pub mod repository;
 
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
+
+pub use models::*;
+pub use repository::*;
 
 pub async fn create_pool() -> Result<PgPool, sqlx::Error> {
     let database_url = std::env::var("DATABASE_URL")
