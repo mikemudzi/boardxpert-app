@@ -1,9 +1,13 @@
 use actix_web::{web, App, HttpServer, HttpResponse};
+use clap::Parser;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod api;
+mod cli;
 mod optimizer;
 mod output;
+
+use cli::Cli;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -14,6 +18,18 @@ async fn main() -> std::io::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
+    let args = Cli::parse();
+
+    if args.worker {
+        tracing::info!("Starting worker with concurrency {}", args.concurrency);
+        // TODO: Implement worker loop
+        Ok(())
+    } else {
+        run_api_server().await
+    }
+}
+
+async fn run_api_server() -> std::io::Result<()> {
     let host = std::env::var("HOST").unwrap_or_else(|_| "127.0.0.1".into());
     let port: u16 = std::env::var("PORT")
         .unwrap_or_else(|_| "8080".into())
