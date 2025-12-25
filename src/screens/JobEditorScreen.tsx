@@ -6,6 +6,8 @@ import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useStore } from '../store';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import PieceInput from '../components/PieceInput';
+import PieceList from '../components/PieceList';
 
 type RouteProps = RouteProp<RootStackParamList, 'JobEditor'>;
 type NavigationProp = StackNavigationProp<RootStackParamList, 'JobEditor'>;
@@ -17,6 +19,9 @@ export default function JobEditorScreen() {
 
   const job = useStore((state) => state.jobs.find((j) => j.id === jobId));
   const updateJob = useStore((state) => state.updateJob);
+  const addPiece = useStore((state) => state.addPiece);
+  const updatePiece = useStore((state) => state.updatePiece);
+  const deletePiece = useStore((state) => state.deletePiece);
 
   const [activeTab, setActiveTab] = useState('details');
 
@@ -70,8 +75,12 @@ export default function JobEditorScreen() {
 
   const renderPiecesTab = () => (
     <View style={styles.tabContent}>
-      <Text>Pieces tab - {job.pieces.length} pieces</Text>
-      {/* Will be implemented in next task */}
+      <PieceInput onAdd={(piece) => addPiece(jobId, piece)} />
+      <PieceList
+        pieces={job.pieces}
+        onUpdate={(pieceId, updates) => updatePiece(jobId, pieceId, updates)}
+        onDelete={(pieceId) => deletePiece(jobId, pieceId)}
+      />
     </View>
   );
 
