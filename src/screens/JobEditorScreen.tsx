@@ -8,6 +8,7 @@ import { useStore } from '../store';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import PieceInput from '../components/PieceInput';
 import PieceList from '../components/PieceList';
+import StockSheetPicker from '../components/StockSheetPicker';
 
 type RouteProps = RouteProp<RootStackParamList, 'JobEditor'>;
 type NavigationProp = StackNavigationProp<RootStackParamList, 'JobEditor'>;
@@ -22,6 +23,8 @@ export default function JobEditorScreen() {
   const addPiece = useStore((state) => state.addPiece);
   const updatePiece = useStore((state) => state.updatePiece);
   const deletePiece = useStore((state) => state.deletePiece);
+  const addStockSheet = useStore((state) => state.addStockSheet);
+  const removeStockSheet = useStore((state) => state.removeStockSheet);
 
   const [activeTab, setActiveTab] = useState('details');
 
@@ -86,8 +89,11 @@ export default function JobEditorScreen() {
 
   const renderStockTab = () => (
     <View style={styles.tabContent}>
-      <Text>Stock tab - {job.stockSheets.length} sheets</Text>
-      {/* Will be implemented in later task */}
+      <StockSheetPicker
+        selectedSheets={job.stockSheets}
+        onAdd={(sheet) => addStockSheet(jobId, sheet)}
+        onRemove={(sheetId) => removeStockSheet(jobId, sheetId)}
+      />
     </View>
   );
 
