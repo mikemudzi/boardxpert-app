@@ -1,6 +1,8 @@
 use actix_web::{web, App, HttpServer, HttpResponse};
 use clap::Parser;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 mod api;
 mod cli;
@@ -13,6 +15,46 @@ mod worker;
 use api::AppState;
 use cli::Cli;
 use worker::Worker;
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        api::handlers::validate,
+        api::handlers::optimize_quick,
+        api::handlers::optimize_async,
+        api::handlers::get_job_status,
+        api::handlers::get_templates,
+    ),
+    components(
+        schemas(
+            api::OptimizeRequest,
+            api::OutputOptions,
+            api::ApiErrorDetail,
+            api::OptimizeResponse,
+            api::AsyncJobResponse,
+            api::JobStatusResponse,
+            optimizer::CutPiece,
+            optimizer::StockSheet,
+            optimizer::CutParameters,
+            optimizer::Priority,
+            optimizer::EdgeBanding,
+            optimizer::PlacedPiece,
+            optimizer::SheetLayout,
+            optimizer::OptimizeResult,
+        )
+    ),
+    tags(
+        (name = "Optimization", description = "Cutting optimization endpoints"),
+        (name = "Jobs", description = "Async job management"),
+        (name = "Templates", description = "Stock sheet templates")
+    ),
+    info(
+        title = "Cut Optimizer API",
+        version = "0.1.0",
+        description = "REST API for 2D bin packing optimization with PDF layout generation. Optimizes cutting layouts for panel materials using the First-Fit Decreasing Height (FFDH) algorithm with guillotine cut constraints.",
+    )
+)]
+struct ApiDoc;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -81,10 +123,16 @@ async fn run_api_server_with_async(host: String, port: u16) -> std::io::Result<(
 
     let app_state = AppState::new(db_pool, redis_conn);
 
+    let openapi = ApiDoc::openapi();
+
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(app_state.clone()))
             .route("/health", web::get().to(health_check))
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", openapi.clone())
+            )
             .configure(api::routes::configure)
     })
     .bind((host, port))?
@@ -96,9 +144,15 @@ async fn run_api_server_sync_only(host: String, port: u16) -> std::io::Result<()
     tracing::info!("Starting Cut Optimizer API at {}:{} (sync-only mode)", host, port);
     tracing::warn!("DATABASE_URL not set - async endpoints will return 503");
 
-    HttpServer::new(|| {
+    let openapi = ApiDoc::openapi();
+
+    HttpServer::new(move || {
         App::new()
             .route("/health", web::get().to(health_check))
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", openapi.clone())
+            )
             .configure(api::routes::configure)
     })
     .bind((host, port))?

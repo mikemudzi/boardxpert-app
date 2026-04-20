@@ -10,7 +10,17 @@ use crate::queue;
 use crate::optimizer::solve_ffdh;
 use crate::output::generate_pdf;
 
-/// POST /api/v1/validate
+/// Validate an optimization request without executing it
+#[utoipa::path(
+    post,
+    path = "/api/v1/validate",
+    request_body = OptimizeRequest,
+    responses(
+        (status = 200, description = "Request is valid"),
+        (status = 400, description = "Validation failed")
+    ),
+    tag = "Optimization"
+)]
 pub async fn validate(
     request: web::Json<OptimizeRequest>,
 ) -> HttpResponse {
@@ -27,7 +37,17 @@ pub async fn validate(
     }
 }
 
-/// POST /api/v1/optimize/quick
+/// Synchronously optimize cutting layouts
+#[utoipa::path(
+    post,
+    path = "/api/v1/optimize/quick",
+    request_body = OptimizeRequest,
+    responses(
+        (status = 200, description = "Optimization completed successfully"),
+        (status = 400, description = "Invalid request")
+    ),
+    tag = "Optimization"
+)]
 pub async fn optimize_quick(
     request: web::Json<OptimizeRequest>,
 ) -> HttpResponse {
@@ -78,7 +98,15 @@ pub async fn optimize_quick(
     HttpResponse::Ok().json(ApiResponse::success(response))
 }
 
-/// GET /api/v1/templates
+/// Get predefined stock sheet templates
+#[utoipa::path(
+    get,
+    path = "/api/v1/templates",
+    responses(
+        (status = 200, description = "List of stock sheet templates")
+    ),
+    tag = "Templates"
+)]
 pub async fn get_templates() -> HttpResponse {
     use crate::optimizer::StockSheet;
 
@@ -115,7 +143,18 @@ pub async fn get_templates() -> HttpResponse {
     HttpResponse::Ok().json(ApiResponse::success(templates))
 }
 
-/// POST /api/v1/optimize/async - Submit job for async processing
+/// Submit an optimization job for asynchronous processing
+#[utoipa::path(
+    post,
+    path = "/api/v1/optimize/async",
+    request_body = OptimizeRequest,
+    responses(
+        (status = 202, description = "Job accepted for processing"),
+        (status = 400, description = "Invalid request"),
+        (status = 500, description = "Server error")
+    ),
+    tag = "Optimization"
+)]
 pub async fn optimize_async(
     state: web::Data<AppState>,
     request: web::Json<OptimizeRequest>,
@@ -176,7 +215,20 @@ pub async fn optimize_async(
     HttpResponse::Accepted().json(ApiResponse::success(response))
 }
 
-/// GET /api/v1/jobs/{job_id} - Get job status
+/// Get the status and results of an async job
+#[utoipa::path(
+    get,
+    path = "/api/v1/jobs/{job_id}",
+    params(
+        ("job_id" = Uuid, Path, description = "Job ID")
+    ),
+    responses(
+        (status = 200, description = "Job status retrieved"),
+        (status = 404, description = "Job not found"),
+        (status = 500, description = "Server error")
+    ),
+    tag = "Jobs"
+)]
 pub async fn get_job_status(
     state: web::Data<AppState>,
     path: web::Path<Uuid>,

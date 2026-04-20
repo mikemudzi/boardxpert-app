@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 /// A rectangular piece to be cut from stock sheets
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CutPiece {
     pub id: String,
     pub width: u32,
@@ -20,7 +21,7 @@ fn default_true() -> bool {
 }
 
 /// Edge banding specification for a piece
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct EdgeBanding {
     #[serde(default)]
     pub top: bool,
@@ -48,7 +49,7 @@ impl EdgeBanding {
 }
 
 /// A stock sheet available for cutting
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct StockSheet {
     pub id: String,
     pub name: String,
@@ -63,7 +64,7 @@ pub struct StockSheet {
 }
 
 /// Parameters controlling the optimization
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct CutParameters {
     #[serde(default = "default_blade_kerf")]
     pub blade_kerf: f64,
@@ -91,7 +92,7 @@ impl Default for CutParameters {
 }
 
 /// Optimization priority
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Priority {
     #[default]
@@ -100,7 +101,7 @@ pub enum Priority {
 }
 
 /// A piece placed on a sheet at specific coordinates
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct PlacedPiece {
     pub piece_id: String,
     pub label: Option<String>,
@@ -114,7 +115,7 @@ pub struct PlacedPiece {
 }
 
 /// A single sheet with pieces placed on it
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct SheetLayout {
     pub sheet_index: usize,
     pub stock_sheet_id: String,
@@ -127,7 +128,7 @@ pub struct SheetLayout {
 }
 
 /// Complete optimization result
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct OptimizeResult {
     pub layouts: Vec<SheetLayout>,
     pub total_sheets: u32,

@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use utoipa::ToSchema;
 use uuid::Uuid;
 use crate::optimizer::OptimizeResult;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ApiResponse<T: Serialize> {
     pub success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -12,7 +13,7 @@ pub struct ApiResponse<T: Serialize> {
     pub error: Option<ApiErrorDetail>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct ApiErrorDetail {
     pub code: String,
     pub message: String,
@@ -56,7 +57,7 @@ impl ApiResponse<()> {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct OptimizeResponse {
     pub job_reference: String,
     #[serde(flatten)]
@@ -66,14 +67,14 @@ pub struct OptimizeResponse {
 }
 
 /// Response when an async job is created
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct AsyncJobResponse {
     pub job_id: Uuid,
     pub status: String,
 }
 
 /// Response for job status polling
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct JobStatusResponse {
     pub job_id: Uuid,
     pub status: String,
