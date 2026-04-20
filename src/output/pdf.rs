@@ -184,15 +184,21 @@ fn draw_diagram(
     let offset_x = DIAGRAM_X + (DIAGRAM_WIDTH - diagram_sheet_width) / 2.0;
     let offset_y = DIAGRAM_Y + (DIAGRAM_HEIGHT - diagram_sheet_height) / 2.0;
 
-    // Draw sheet outline
+    // Draw sheet outline (stroked, not filled)
     layer.set_outline_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
     layer.set_outline_thickness(1.0);
 
-    let sheet_rect = Rect::new(
-        Mm(offset_x), Mm(offset_y),
-        Mm(offset_x + diagram_sheet_width), Mm(offset_y + diagram_sheet_height),
-    );
-    layer.add_rect(sheet_rect);
+    // Draw sheet as lines to get stroke-only rectangle
+    let sheet_outline = Line {
+        points: vec![
+            (Point::new(Mm(offset_x), Mm(offset_y)), false),
+            (Point::new(Mm(offset_x + diagram_sheet_width), Mm(offset_y)), false),
+            (Point::new(Mm(offset_x + diagram_sheet_width), Mm(offset_y + diagram_sheet_height)), false),
+            (Point::new(Mm(offset_x), Mm(offset_y + diagram_sheet_height)), false),
+        ],
+        is_closed: true,
+    };
+    layer.add_line(sheet_outline);
 
     // Draw sheet dimension labels
     layer.use_text(
@@ -225,12 +231,21 @@ fn draw_piece(
     let w = piece.width as f32 * scale;
     let h = piece.length as f32 * scale;
 
-    // Draw piece rectangle
+    // Draw piece rectangle (stroked, not filled)
     layer.set_outline_color(Color::Rgb(Rgb::new(0.0, 0.0, 0.0, None)));
     layer.set_outline_thickness(0.5);
 
-    let piece_rect = Rect::new(Mm(x), Mm(y), Mm(x + w), Mm(y + h));
-    layer.add_rect(piece_rect);
+    // Draw piece as lines to get stroke-only rectangle
+    let piece_outline = Line {
+        points: vec![
+            (Point::new(Mm(x), Mm(y)), false),
+            (Point::new(Mm(x + w), Mm(y)), false),
+            (Point::new(Mm(x + w), Mm(y + h)), false),
+            (Point::new(Mm(x), Mm(y + h)), false),
+        ],
+        is_closed: true,
+    };
+    layer.add_line(piece_outline);
 
     // Draw piece ID centered
     let id_short = piece.piece_id.rsplit_once('-')
