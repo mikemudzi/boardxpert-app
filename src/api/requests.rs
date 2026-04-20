@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use crate::optimizer::{CutPiece, StockSheet, CutParameters};
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, ToSchema)]
 pub struct OptimizeRequest {
     pub job_reference: String,
     #[serde(default)]
@@ -16,7 +17,7 @@ pub struct OptimizeRequest {
     pub webhook_url: Option<String>,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize, ToSchema)]
 pub struct OutputOptions {
     #[serde(default)]
     pub generate_pdf: bool,
